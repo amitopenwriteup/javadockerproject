@@ -1,0 +1,59 @@
+---
+resource_types:
+- name: registry-image
+  type: registry-image
+  source:
+    repository: concourse/registry-image-resource
+
+resources:
+  # Git repository as input
+  - name: app-repo
+    type: git
+    source:
+      uri: https://github.com/amitopenwriteup/javadockerproject.git
+      branch: main
+
+
+jobs:
+- name: build-test-dockerize
+  public: true
+  plan:
+  - get: app-repo
+    trigger: true
+
+  - task: build
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source: { repository: maven, tag: 3.9.6-eclipse-temurin-11 }
+      inputs:
+        - name: app-repo
+      outputs:
+        - name: build-output
+      run:
+        path: sh
+        args:
+          - -exc
+          - |
+            cd app-repo
+            mvn clean package -DskipTests
+            cp target/*.jar ../build-output/app.jar
+
+  - task: test
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source: { repository: maven, tag: 3.9.6-eclipse-temurin-11 }
+      inputs:
+        - name: app-repo
+      run:
+        path: sh
+        args:
+          - -exc
+          - |
+            cd app-repo
+            mvn test
+
+
