@@ -1,59 +1,42 @@
----
-resource_types:
-- name: registry-image
-  type: registry-image
-  source:
-    repository: concourse/registry-image-resource
-
 resources:
-  # Git repository as input
-  - name: app-repo
-    type: git
-    source:
-      uri: https://github.com/amitopenwriteup/javadockerproject.git
-      branch: main
+# The repo with our Dockerfile
+- name: concourse-examples
+  type: git
+  icon: github
+  source:
+    uri: https://github.com/amitopenwriteup/javadockerproject.git
+    branch: main
 
+# Where we will push the image
+- name: simple-image
+  type: registry-image
+  icon: docker
+  source:
+    repository: ((image-repo-name))/simple-image
+    tag: latest
+    username: ((registry-username))
+    password: ((registry-password))
 
 jobs:
-- name: build-test-dockerize
-  public: true
+- name: build-and-push
   plan:
-  - get: app-repo
-    trigger: true
-
-  - task: build
+  - get: concourse-examples
+  - task: build-task-image
+    privileged: true
     config:
       platform: linux
       image_resource:
         type: registry-image
-        source: { repository: maven, tag: 3.9.6-eclipse-temurin-11 }
+        source:
+          repository: concourse/oci-build-task
       inputs:
-        - name: app-repo
+      - name: concourse-examples
       outputs:
-        - name: build-output
+      - name: image
+      params:
+        CONTEXT: concourse-examples
       run:
-        path: sh
-        args:
-          - -exc
-          - |
-            cd app-repo
-            mvn clean package -DskipTests
-            cp target/*.jar ../build-output/app.jar
-
-  - task: test
-    config:
-      platform: linux
-      image_resource:
-        type: registry-image
-        source: { repository: maven, tag: 3.9.6-eclipse-temurin-11 }
-      inputs:
-        - name: app-repo
-      run:
-        path: sh
-        args:
-          - -exc
-          - |
-            cd app-repo
-            mvn test
-
-
+        path: build
+  - put: simple-image
+    params:
+      image: image/image.tar

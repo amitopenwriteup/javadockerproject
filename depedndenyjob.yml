@@ -1,0 +1,58 @@
+resource_types:
+- name: registry-image
+  type: registry-image
+  source:
+    repository: concourse/registry-image-resource
+
+resources:
+- name: git-repo
+  type: git
+  source:
+    uri: https://github.com/amitopenwriteup/concourse.git
+    branch: main
+
+jobs:
+- name: job-a
+  plan:
+  - get: git-repo
+    trigger: true
+  - task: task-a
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source: { repository: alpine }
+      run:
+        path: sh
+        args: ["-exc", "echo 'Running Job A'"]
+
+- name: job-b
+  plan:
+  - get: git-repo
+    passed: [job-a]   # <-- depends on job-a success
+    trigger: true
+  - task: task-b
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source: { repository: alpine }
+      run:
+        path: sh
+        args: ["-exc", "echo 'Running Job B'"]
+
+- name: job-c
+  plan:
+  - get: git-repo
+    passed: [job-b]   # <-- depends on job-b success
+    trigger: true
+  - task: task-c
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source: { repository: alpine }
+      run:
+        path: sh
+        args: ["-exc", "echo 'Running Job C'"]
+
