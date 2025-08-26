@@ -1,0 +1,98 @@
+resources:
+  # Git repo with Dockerfile
+  - name: concourse-examples
+    type: git
+    icon: github
+    source:
+      uri: https://github.com/amitopenwriteup/javadockerproject.git
+      branch: main
+
+  # Docker registry
+  - name: simple-image
+    type: registry-image
+    icon: docker
+    source:
+      repository: ((image-repo-name))/simple-image
+      tag: latest
+      username: ((registry-username))
+      password: ((registry-password))
+
+  # Kubernetes cluster (for deployment)
+  - name: k8s-cluster
+    type: kubernetes
+    source:
+      kubeconfig: ((kubeconfig))   # base64 encoded kubeconfig secret
+      namespace: default
+
+jobs:
+- name: build-scan-push-deploy
+  plan:
+  # Step 1: Get code
+  - get: concourse-examples
+
+  # Step 2: Build Docker image
+  - task: build-task-image
+    privileged: true
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: concourse/oci-build-task
+      inputs:
+        - name: concourse-examples
+      outputs:
+        - name: image
+      params:
+        CONTEXT: concourse-examples
+      run:
+        path: build
+
+  # Step 3: Scan with Trivy
+  - task: trivy-scan
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: aquasec/trivy   # Trivy official image
+          tag: latest
+      inputs:
+        - name: image
+      run:
+        path: sh
+        args:
+          - -exc
+          - |
+            echo "=== Running Trivy scan ==="
+            trivy image --exit-code 1 --severity CRITICAL,HIGH --input image/image.tar || {
+              echo "Vulnerabilities found! Failing build."
+              exit 1
+            }
+
+  # Step 4: Push image to registry
+  - put: simple-image
+    params:
+      image: image/image.tar
+
+  # Step 5: Deploy to Kubernetes
+  - task: deploy-k8s
+    config:
+      platform: linux
+      image_resource:
+        type: registry-image
+        source:
+          repository: bitnami/kubectl
+          tag: latest
+      inputs:
+        - name: concourse-examples
+      params:
+        IMAGE: ((image-repo-name))/simple-image:latest
+      run:
+        path: sh
+        args:
+          - -exc
+          - |
+            echo "=== Deploying to Kubernetes ==="
+            kubectl set image deployment/simple-app simple-app=$IMAGE --record
+            kubectl rollout status deployment/simple-app
