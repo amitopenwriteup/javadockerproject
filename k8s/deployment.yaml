@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: simple-app
-          image: REPLACE_IMAGE
+          image: amitow/simple-image
           ports:
             - containerPort: 8080
           resources:
