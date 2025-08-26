@@ -1,5 +1,5 @@
 resources:
-  # Git repo with Dockerfile
+  # Git repo with Dockerfile + manifests
   - name: concourse-examples
     type: git
     icon: github
@@ -7,7 +7,7 @@ resources:
       uri: https://github.com/amitopenwriteup/javadockerproject.git
       branch: main
 
-  # Docker registry
+  # Docker registry (where image will be pushed)
   - name: simple-image
     type: registry-image
     icon: docker
@@ -17,18 +17,12 @@ resources:
       username: ((registry-username))
       password: ((registry-password))
 
-  # Kubernetes cluster (for deployment)
-  - name: k8s-cluster
-    type: kubernetes
-    source:
-      kubeconfig: ((kubeconfig))   # base64 encoded kubeconfig secret
-      namespace: default
-
 jobs:
 - name: build-scan-push-deploy
   plan:
-  # Step 1: Get code
+  # Step 1: Get source code
   - get: concourse-examples
+    trigger: true
 
   # Step 2: Build Docker image
   - task: build-task-image
@@ -55,7 +49,7 @@ jobs:
       image_resource:
         type: registry-image
         source:
-          repository: aquasec/trivy   # Trivy official image
+          repository: aquasec/trivy
           tag: latest
       inputs:
         - name: image
@@ -88,11 +82,16 @@ jobs:
         - name: concourse-examples
       params:
         IMAGE: ((image-repo-name))/simple-image:latest
+        KUBECONFIG_CONTENT: ((kubeconfig))   # base64-encoded kubeconfig secret
       run:
         path: sh
         args:
           - -exc
           - |
             echo "=== Deploying to Kubernetes ==="
-            kubectl set image deployment/simple-app simple-app=$IMAGE --record
+            mkdir -p /tmp/kubeconfig
+            echo "$KUBECONFIG_CONTENT" | base64 -d > /tmp/kubeconfig/config
+            export KUBECONFIG=/tmp/kubeconfig/config
+            sed "s|REPLACE_IMAGE|$IMAGE|g" concourse-examples/k8s/deployment.yaml > /tmp/deployment.yaml
+            kubectl apply -f /tmp/deployment.yaml
             kubectl rollout status deployment/simple-app
