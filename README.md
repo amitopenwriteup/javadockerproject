@@ -1,8 +1,7 @@
- Let’s create a **professional `README.md`** for your GitHub project `javadockerproject`.
 
 Here’s a good starting point:
 
-```markdown
+markdown
 # Java Docker Project 🚀
 
 This project demonstrates how to containerize and deploy a Java application using **Docker**, **Kubernetes**, and **CI/CD pipelines**. It includes the necessary Dockerfile, Kubernetes manifests, and Jenkins pipeline configurations to automate the build and deployment process.
@@ -11,7 +10,7 @@ This project demonstrates how to containerize and deploy a Java application usin
 
 ## 📂 Project Structure
 
-```
+
 
 ├── app-repo/                # Application source code
 ├── k8s/                     # Kubernetes deployment manifests
@@ -26,7 +25,7 @@ This project demonstrates how to containerize and deploy a Java application usin
 ├── options.json             # Options/configuration file
 └── README.md                # Project documentation
 
-````
+`
 
 ---
 
@@ -42,29 +41,29 @@ This project demonstrates how to containerize and deploy a Java application usin
 
 ## 🐳 Build & Run with Docker
 
-```bash
+bash
 # Build Docker image
 docker build -t javadockerproject:latest .
 
 # Run container
 docker run -p 8080:8080 javadockerproject:latest
-````
+`
 
 ---
 
 ## ☸️ Deploy to Kubernetes
 
-```bash
+bash
 # Apply deployment and service
 kubectl apply -f k8s/deployment.yaml
-```
+
 
 Verify the pod and service:
 
-```bash
+bash
 kubectl get pods
 kubectl get svc
-```
+
 
 ---
 
@@ -101,10 +100,3 @@ Pipeline includes:
 License
 
 This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
-
-```
-
----
-
-👉 Do you want me to also add **badges (build status, Docker, Kubernetes, license, etc.)** at the top of the README for a more professional GitHub look?
-```
